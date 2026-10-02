@@ -57,6 +57,18 @@ public abstract class DataSaverBase extends DataChangeBase {
         setValue(index, value);
     }
 
+    protected String getString(int index) {
+        return getString(index, null);
+    }
+
+    protected String getString(int index, String defaultValue) {
+        return getValue(index, defaultValue, Helpers::parseStr);
+    }
+
+    protected void setString(int index, String value) {
+        setValue(index, value);
+    }
+
     @SuppressWarnings("unchecked")
     private <T> T getValue(int index, T defaultValue, Converter converter) {
         if (index >= mValues.size() || mValues.get(index) == null) {

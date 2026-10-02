@@ -29,13 +29,17 @@ import com.liskovsoft.smartyoutubetv2.common.app.views.ChannelUploadsView;
 import com.liskovsoft.smartyoutubetv2.common.app.views.PlaybackView;
 import com.liskovsoft.smartyoutubetv2.common.misc.MediaServiceManager;
 import com.liskovsoft.smartyoutubetv2.common.misc.StreamReminderService;
+import com.liskovsoft.smartyoutubetv2.common.misc.ai.AiSummaryData;
+import com.liskovsoft.smartyoutubetv2.common.misc.ai.AiSummaryManager;
 import com.liskovsoft.smartyoutubetv2.common.prefs.BlockedChannelData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.GeneralData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.MainUIData;
 import com.liskovsoft.smartyoutubetv2.common.utils.AppDialogUtil;
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager;
 import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
@@ -51,6 +55,7 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
     private Disposable mNotInterestedAction;
     private Disposable mSubscribeAction;
     private Disposable mPlaylistsInfoAction;
+    private Disposable mAiSummaryAction;
     private Video mVideo;
     public static WeakReference<Video> sVideoHolder = new WeakReference<>(null);
     private boolean mIsNotInterestedButtonEnabled;
@@ -74,6 +79,7 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
     private boolean mIsShowPlaybackQueueButtonEnabled;
     private boolean mIsOpenDescriptionButtonEnabled;
     private boolean mIsOpenCommentsButtonEnabled;
+    private boolean mIsAiSummaryButtonEnabled;
     private boolean mIsPlayVideoButtonEnabled;
     private boolean mIsPlayVideoIncognitoButtonEnabled;
     private boolean mIsPlayFromStartButtonEnabled;
@@ -640,6 +646,58 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
                 ));
     }
 
+    private void appendAiSummaryButton() {
+        if (!mIsAiSummaryButtonEnabled || mVideo == null || mVideo.videoId == null) {
+            return;
+        }
+
+        mDialogPresenter.appendSingleButton(
+                UiOptionItem.from(getContext().getString(R.string.ai_summary),
+                        optionItem -> showAiSummary()));
+    }
+
+    private void showAiSummary() {
+        AiSummaryManager manager = AiSummaryManager.instance(getContext());
+
+        if (!manager.isConfigured()) {
+            MessageHelpers.showLongMessage(getContext(), R.string.ai_summary_not_configured);
+            return;
+        }
+
+        final Video video = mVideo;
+
+        MessageHelpers.showMessage(getContext(), R.string.wait_data_loading);
+
+        RxHelper.disposeActions(mAiSummaryAction);
+        mAiSummaryAction = manager.summarize(video)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        this::showAiSummaryDialog,
+                        error -> MessageHelpers.showLongMessage(getContext(), getContext().getString(
+                                R.string.ai_summary_error, summarizeError(error)))
+                );
+    }
+
+    private void showAiSummaryDialog(AiSummaryManager.Result result) {
+        boolean isCached = result.fromCache && AiSummaryData.instance(getContext()).isCachedNoticeEnabled();
+        String dialogTitle = getContext().getString(isCached ? R.string.ai_summary_cached : R.string.ai_summary);
+
+        // Replaces the opened menu dialog, same as the video description dialog does.
+        // NOTE: don't close the menu dialog first, its onFinish() resets the dialog presenter categories.
+        mDialogPresenter.appendLongTextCategory(
+                mVideo != null ? mVideo.getTitle() : dialogTitle,
+                UiOptionItem.from(result.text));
+
+        mDialogPresenter.showDialog(dialogTitle);
+    }
+
+    private String summarizeError(Throwable error) {
+        String message = error != null ? error.getMessage() : null;
+
+        return message != null ? message : "unknown error";
+    }
+
     private void appendOpenCommentsButton() {
         if (!mIsOpenCommentsButtonEnabled || mVideo == null) {
             return;
@@ -1021,6 +1079,8 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
         mIsPlaylistOrderButtonEnabled = mainUIData.isMenuItemEnabled(MainUIData.MENU_ITEM_PLAYLIST_ORDER);
         mIsMarkAsWatchedButtonEnabled = mainUIData.isMenuItemEnabled(MainUIData.MENU_ITEM_MARK_AS_WATCHED);
         mIsOpenCommentsButtonEnabled = mainUIData.isMenuItemEnabled(MainUIData.MENU_ITEM_OPEN_COMMENTS);
+        mIsAiSummaryButtonEnabled = mainUIData.isMenuItemEnabled(MainUIData.MENU_ITEM_AI_SUMMARY)
+                && AiSummaryData.instance(getContext()).isEnabled();
     }
 
     private void initMenuMapping() {
@@ -1060,6 +1120,7 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
         mMenuMapping.put(MainUIData.MENU_ITEM_TOGGLE_HISTORY, new MenuAction(this::appendToggleHistoryButton, true));
         mMenuMapping.put(MainUIData.MENU_ITEM_CLEAR_HISTORY, new MenuAction(this::appendClearHistoryButton, true));
         mMenuMapping.put(MainUIData.MENU_ITEM_OPEN_COMMENTS, new MenuAction(this::appendOpenCommentsButton, false));
+        mMenuMapping.put(MainUIData.MENU_ITEM_AI_SUMMARY, new MenuAction(this::appendAiSummaryButton, false));
 
         for (ContextMenuProvider provider : new ContextMenuManager(getContext()).getProviders()) {
             if (provider.getMenuType() != ContextMenuProvider.MENU_TYPE_VIDEO) {
