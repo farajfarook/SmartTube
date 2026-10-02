@@ -40,6 +40,7 @@ public class AiSummarySettingsPresenter extends BasePresenter<Void> {
         appendBaseUrlButton(settingsPresenter);
         appendPathPrefixButton(settingsPresenter);
         appendModelButton(settingsPresenter);
+        appendRequestFormatCategory(settingsPresenter);
         appendAuthStyleCategory(settingsPresenter);
         appendPromptButton(settingsPresenter);
         appendTimeoutCategory(settingsPresenter);
@@ -127,6 +128,24 @@ public class AiSummarySettingsPresenter extends BasePresenter<Void> {
                             return true;
                         })
         ));
+    }
+
+    private void appendRequestFormatCategory(AppDialogPresenter settingsPresenter) {
+        List<OptionItem> options = new ArrayList<>();
+
+        options.add(UiOptionItem.from(
+                getContext().getString(R.string.ai_summary_request_format_gemini),
+                option -> mData.setRequestFormat(AiSummaryData.REQUEST_FORMAT_GEMINI),
+                mData.getRequestFormat() == AiSummaryData.REQUEST_FORMAT_GEMINI
+        ));
+
+        options.add(UiOptionItem.from(
+                getContext().getString(R.string.ai_summary_request_format_openai),
+                option -> mData.setRequestFormat(AiSummaryData.REQUEST_FORMAT_OPENAI),
+                mData.getRequestFormat() == AiSummaryData.REQUEST_FORMAT_OPENAI
+        ));
+
+        settingsPresenter.appendRadioCategory(getContext().getString(R.string.ai_summary_request_format), options);
     }
 
     private void appendAuthStyleCategory(AppDialogPresenter settingsPresenter) {

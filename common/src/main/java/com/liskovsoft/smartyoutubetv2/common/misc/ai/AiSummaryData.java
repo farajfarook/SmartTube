@@ -19,6 +19,16 @@ public class AiSummaryData extends DataSaverBase {
     public static final String DEFAULT_MODEL = "gemini-3.6-flash";
     public static final int AUTH_STYLE_API_KEY = 0;
     public static final int AUTH_STYLE_BEARER = 1;
+    /**
+     * Gemini native: POST {base}/v1beta/models/{model}:generateContent with parts[{fileData},{text}].
+     * Works against generativelanguage.googleapis.com.
+     */
+    public static final int REQUEST_FORMAT_GEMINI = 0;
+    /**
+     * OpenAI-compatible: POST {base}/v1/chat/completions with content[{type:text},{type:video_url}].
+     * Verified to ingest the video through LiteLLM, unlike its Gemini adapter route.
+     */
+    public static final int REQUEST_FORMAT_OPENAI = 1;
     public static final int DEFAULT_TIMEOUT_SEC = 120;
     public static final String DEFAULT_PROMPT =
             "Summarize this YouTube video for a viewer who has not watched it yet. Include:\n" +
@@ -38,6 +48,7 @@ public class AiSummaryData extends DataSaverBase {
     private static final int IDX_TIMEOUT_SEC = 7;
     private static final int IDX_CACHED_NOTICE = 8;
     private static final int IDX_PLAYER_BUTTON = 9;
+    private static final int IDX_REQUEST_FORMAT = 10;
 
     private static AiSummaryData sInstance;
 
@@ -132,6 +143,14 @@ public class AiSummaryData extends DataSaverBase {
 
     public void setPlayerButtonEnabled(boolean enabled) {
         setBoolean(IDX_PLAYER_BUTTON, enabled);
+    }
+
+    public int getRequestFormat() {
+        return getInt(IDX_REQUEST_FORMAT, REQUEST_FORMAT_GEMINI);
+    }
+
+    public void setRequestFormat(int requestFormat) {
+        setInt(IDX_REQUEST_FORMAT, requestFormat);
     }
 
     /**

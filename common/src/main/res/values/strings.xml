@@ -762,6 +762,9 @@
     <string name="ai_summary_path_prefix_hint">Optional, for proxy deployments</string>
     <string name="ai_summary_model">Model</string>
     <string name="ai_summary_auth_style">Authentication</string>
+    <string name="ai_summary_request_format">Request format</string>
+    <string name="ai_summary_request_format_gemini">Gemini generateContent</string>
+    <string name="ai_summary_request_format_openai">OpenAI chat completions</string>
     <string name="ai_summary_auth_style_api_key">Header "x-goog-api-key"</string>
     <string name="ai_summary_auth_style_bearer">Header "Authorization: Bearer"</string>
     <string name="ai_summary_prompt">Prompt</string>

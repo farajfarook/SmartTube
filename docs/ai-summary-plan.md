@@ -218,29 +218,57 @@ Implemented (long-press menu trigger, Gemini native YouTube URL, native + Bearer
 
 ### Verified behaviour of the configured endpoints
 
-Tested live against a self-hosted LiteLLM proxy (model `gemini-3.8-flash` → `google/gemini-3.8-flash`):
+Tested live against a self-hosted LiteLLM proxy (model `gemini-3.8-flash` → `google/gemini-3.8-flash`) using a
+short-lived virtual key. Test videos: *Me at the zoo* (`jNQXAC9IVRw`, really a man at an elephant enclosure)
+and *Never Gonna Give You Up* (`dQw4w9WgXcQ`).
 
-- `POST {base}/v1beta/models/{model}:generateContent` works, and the response shape matches the parser
-  (`candidates[0].content.parts[].text`, `finishReason`, `promptFeedback.blockReason`).
-- **That endpoint silently drops `fileData` video parts.** Two different YouTube URLs both returned
-  `promptTokenCount: 10` (the text prompt alone) with confidently wrong, hallucinated answers.
-- The proxy also exposes LiteLLM's raw passthrough `/gemini/{endpoint}`; unverified because it requires a
-  virtual `sk-` key rather than a management key.
+| Request shape | Auth | Video ingested? | Evidence |
+|---|---|---|---|
+| `{base}/gemini/v1beta/models/{m}:generateContent` | `x-goog-api-key` | **Route broken** | HTTP 500 even for a text-only prompt |
+| `{base}/v1beta/models/{m}:generateContent` | `Authorization: Bearer` | **No** | `promptTokenCount: 10`; a different hallucination each run ("desert, red rock formations", "pipette watering a seedling") |
+| `{base}/v1/chat/completions` + `video_url` part | `Authorization: Bearer` | **Yes** | Me at the zoo: `video_tokens: 1197`, `audio_tokens: 479`, correct answer. Rick Astley: `video_tokens: 19387`, correct answer |
 
-Consequences:
+Conclusions:
 
-- `AiSummaryClient` now sanity-checks `usageMetadata.promptTokenCount`: if a video was sent but the count is
-  implausibly low (< 100), it fails loudly instead of showing a hallucinated summary.
-- For LiteLLM the likely working configuration is path prefix `/gemini` with the Bearer auth style, i.e.
-  `{base}/gemini/v1beta/models/{model}:generateContent`. This needs a virtual key to confirm.
-- Direct Google (`https://generativelanguage.googleapis.com`) with `x-goog-api-key` remains the primary,
-  documented path.
+- The native Gemini `fileData` shape is only usable against Google directly
+  (`generativelanguage.googleapis.com` with `x-goog-api-key`). Through this LiteLLM proxy it is a dead end.
+- The OpenAI-compatible route with a `video_url` content part genuinely ingests video **and audio**, so it is
+the working proxy path. Hence the `Request format` setting.
+
+Reference configuration for a LiteLLM proxy:
+
+| Setting | Value |
+|---|---|
+| API base URL | `https://<proxy-host>` |
+| Request format | OpenAI chat completions |
+| Authentication | `Authorization: Bearer` |
+| Model | whatever the proxy exposes, e.g. `gemini-3.8-flash` |
+
+Reference configuration for Google directly:
+
+| Setting | Value |
+|---|---|
+| API base URL | `https://generativelanguage.googleapis.com` (default) |
+| Request format | Gemini generateContent (default) |
+| Authentication | `x-goog-api-key` (default) |
+
+### Ingestion guard
+
+A silently dropped video produces a confidently wrong summary, which is worse than an error. Both response
+parsers therefore check the usage data and fail loudly instead of showing the text:
+
+- Gemini: `usageMetadata.promptTokenCount` below 100.
+- OpenAI: `usage.prompt_tokens_details.video_tokens` must be greater than 0 when reported, otherwise
+  `usage.prompt_tokens` below 100. Skipped when the provider reports no usage data at all.
+
+This guard was validated against the broken route above, which returns `promptTokenCount: 10`.
 
 ### Known gaps
 
-- Not compiled or run: this environment has no JDK or Android SDK. Verification was by code review plus live
-  request-shape testing against the proxy.
+- Not compiled or run: no JDK or Android SDK was available. Verification was code review plus live
+  request-shape testing against a real proxy.
 - No live/upcoming video guard; those will surface as an API error.
 - The API key is stored in plain `SharedPreferences`, like the existing web-proxy password.
 - Only the default `values/` strings were added; other locales fall back to English.
+
 
