@@ -769,7 +769,7 @@
     <string name="ai_summary_auth_style_bearer">Header "Authorization: Bearer"</string>
     <string name="ai_summary_prompt">Prompt</string>
     <string name="ai_summary_timeout">Request timeout</string>
-    <string name="ai_summary_seconds">%s sec</string>
+    <string name="ai_summary_seconds">%d sec</string>
     <string name="ai_summary_cached_notice">Show notice for cached summaries</string>
     <string name="ai_summary_restore_defaults">Restore defaults</string>
     <string name="ai_summary_defaults_restored">Defaults restored</string>
