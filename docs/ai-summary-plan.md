@@ -265,10 +265,15 @@ This guard was validated against the broken route above, which returns `promptTo
 
 ### Known gaps
 
-- Not compiled or run: no JDK or Android SDK was available. Verification was code review plus live
-  request-shape testing against a real proxy.
+- **Compiles.** GitHub Actions (`CI.yml`, `lintStbetaRelease` + `assembleStbetaRelease`) passes and produces
+  APKs for arm64, armeabi-v7a, universal and x86. Lint caught one real error before compilation was ever
+  reached: `ai_summary_seconds` used `%s` with an `int`, and `common/build.gradle` sets `abortOnError true`,
+  so the build aborted. Fixed by switching the conversion to `%d`.
+- **Not run on a device.** The feature has not been exercised end to end on an Android TV, so the settings
+  dialog flow and the long-press menu integration are still only verified by review.
 - No live/upcoming video guard; those will surface as an API error.
 - The API key is stored in plain `SharedPreferences`, like the existing web-proxy password.
 - Only the default `values/` strings were added; other locales fall back to English.
+- APKs built in a fork are unsigned, because the signing secrets are not inherited by forks.
 
 
